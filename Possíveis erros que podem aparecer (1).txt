@@ -1,0 +1,39 @@
+Possíveis erros que podem aparecer
+
+Erro de compilação:
+
+Não deve ocorrer se você copiar todo o código, criar o arquivo como SistemaFinal.java, e usar JDK 17+.
+
+Se o arquivo tiver outro nome ou faltar chaves {} ou } em algum lugar, haverá erros de parsing.
+
+Erros de execução relacionados a entrada do usuário:
+
+Entrada de números inválidos (menus, índices): já são tratados com try/catch, que mostram “Entrada inválida”.
+
+Datas em formato incorreto: tratadas com DateTimeParseException. Se o usuário digitar errado, o sistema avisa e pede novamente.
+
+Limite de projetos por usuário:
+
+O sistema bloqueia automaticamente se o usuário já tiver 4 projetos.
+
+Lista vazia ou índices fora do alcance:
+
+Adição de tarefas e membros valida se existem usuários ou membros na equipe antes de prosseguir.
+
+CSV de exportação:
+
+Se houver problema de permissão de escrita, o sistema exibe a mensagem de erro, mas não trava.
+
+Resumo
+
+✅ Se você:
+
+Criar o arquivo como SistemaFinal.java
+
+Usar JDK 17 ou superior
+
+Copiar todo o código
+
+Inserir entradas no formato esperado (datas YYYY-MM-DD)
+
+Então o sistema deve rodar sem erros de compilação nem travamentos críticos.
