@@ -1,0 +1,333 @@
+---# Versão a prova de Erros #--- Apagar essa linha -- #
+
+import java.io.FileWriter;
+import java.io.IOException;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.util.*;
+
+// ===================== ENUMS =====================
+enum Perfil { ADMINISTRADOR, GERENTE, COLABORADOR }
+enum Status { PLANEJANDO, EM_ANDAMENTO, CONCLUIDO, CANCELADO, ATRASADO }
+enum Prioridade { ALTA, MEDIA, NORMAL, BAIXA }
+
+// ===================== CLASSES =====================
+class Usuario {
+    private String nome, email, login, senha, cargo;
+    private Perfil perfil;
+    private List<Projeto> projetos = new ArrayList<>();
+
+    public Usuario(String nome, String email, String login, String senha, String cargo, Perfil perfil) {
+        this.nome = nome; this.email = email; this.login = login; this.senha = senha;
+        this.cargo = cargo; this.perfil = perfil;
+    }
+
+    public String getNome() { return nome; }
+    public String getEmail() { return email; }
+    public String getLogin() { return login; }
+    public String getSenha() { return senha; }
+    public Perfil getPerfil() { return perfil; }
+    public List<Projeto> getProjetos() { return projetos; }
+
+    public boolean adicionarProjeto(Projeto p) {
+        if (projetos.size() < 4) { projetos.add(p); return true; }
+        else { System.out.println("❌ Usuário já está em 4 projetos."); return false; }
+    }
+}
+
+class Tarefa {
+    private String descricao, motivoCancelamento, motivoAtraso;
+    private LocalDate inicio, fimPrevisto, fimReal;
+    private Status status;
+    private Prioridade prioridade;
+    private Usuario responsavel;
+    private static Scanner scanner = new Scanner(System.in);
+
+    public Tarefa(String descricao, LocalDate inicio, LocalDate fimPrevisto, Prioridade prioridade, Usuario responsavel) {
+        this.descricao = descricao;
+        this.inicio = inicio; this.fimPrevisto = fimPrevisto; this.prioridade = prioridade;
+        this.responsavel = responsavel; this.status = Status.PLANEJANDO;
+    }
+
+    public void concluir() {
+        fimReal = LocalDate.now();
+        if(fimReal.isAfter(fimPrevisto)) {
+            status = Status.ATRASADO;
+            System.out.println(⚠️ Informe o motivo do atraso:");
+            motivoAtraso = scanner.nextLine();
+        } else {
+            status = Status.CONCLUIDO;
+        }
+        notificar("conclusão");
+    }
+
+    public void cancelar() {
+        status = Status.CANCELADO;
+        System.out.println("❌ Informe o motivo do cancelamento:");
+        motivoCancelamento = scanner.nextLine();
+        notificar("cancelamento");
+    }
+
+    private void notificar(String tipo) {
+        System.out.println("\n=== Notificação (simulada) ===");
+        System.out.println("Para: " + responsavel.getEmail());
+        if(tipo.equals("conclusão")) System.out.println("Mensagem: Obrigado por concluir a tarefa \"" + descricao + "\"!");
+        else System.out.println("Mensagem: Tarefa \"" + descricao + "\" cancelada. Motivo: " + motivoCancelamento);
+        System.out.println("Para: Administrador e Gerente (simulado)");
+        System.out.println("Mensagem: " + responsavel.getNome() + " atualizou a tarefa \"" + descricao + "\" com status " + status);
+        System.out.println("=============================\n");
+    }
+
+    public String exportarCSV(String projeto, Usuario admin, Usuario gerente) {
+        return projeto + ";" + admin.getNome() + ";" + gerente.getNome() + ";" + responsavel.getNome() + ";" +
+               descricao + ";" + inicio + ";" + fimPrevisto + ";" + status + ";" +
+               (motivoCancelamento != null ? motivoCancelamento : motivoAtraso != null ? motivoAtraso : "");
+    }
+
+    @Override
+    public String toString() {
+        return descricao + " | Resp: " + responsavel.getNome() + " | Status: " + status + " | Prioridade: " + prioridade;
+    }
+}
+
+class Projeto {
+    private String nome, descricao;
+    private Usuario administrador, gerente;
+    private List<Usuario> equipe = new ArrayList<>();
+    private List<Tarefa> tarefas = new ArrayList<>();
+
+    public Projeto(String nome, String descricao, Usuario admin, Usuario gerente) {
+        this.nome = nome; this.descricao = descricao; this.administrador = admin; this.gerente = gerente;
+    }
+
+    public boolean adicionarMembro(Usuario u) {
+        if(u.adicionarProjeto(this)) {
+            equipe.add(u);
+            System.out.println("✅ Membro adicionado: " + u.getNome());
+            return true;
+        } else return false;
+    }
+
+    public void adicionarTarefa(Tarefa t) { tarefas.add(t); }
+    public List<Tarefa> getTarefas() { return tarefas; }
+    public Usuario getAdministrador() { return administrador; }
+    public Usuario getGerente() { return gerente; }
+    public String getNome() { return nome; }
+    public List<Usuario> getEquipe() { return equipe; }
+
+    public void exportarCSV() {
+        try(FileWriter writer = new FileWriter("projetos_export.csv", true)) {
+            for(Tarefa t: tarefas) writer.write(t.exportarCSV(nome, administrador, gerente) + "\n");
+            System.out.println("✅ Dados exportados para projetos_export.csv");
+        } catch(IOException e) {
+            System.out.println("Erro ao exportar CSV: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public String toString() {
+        return "\nProjeto: " + nome + "\nDescrição: " + descricao + "\nAdministrador: " + administrador.getNome() +
+               "\nGerente: " + gerente.getNome() + "\nEquipe: " + equipe.size() + " membros\nTarefas: " + tarefas.size();
+    }
+}
+
+// ===================== SISTEMA =====================
+public class SistemaFinal {
+    private static List<Usuario> usuarios = new ArrayList<>();
+    private static List<Projeto> projetos = new ArrayList<>();
+    private static Scanner scanner = new Scanner(System.in);
+
+    public static void main(String[] args) {
+        seedUsuarios();
+        menuLogin();
+    }
+
+    private static void seedUsuarios() {
+        usuarios.add(new Usuario("Lucas Silva","lucas.silva@email.com","lucas.silva","Padrao123","PO",Perfil.ADMINISTRADOR));
+        usuarios.add(new Usuario("Carol Cavalcante","carol.cavalcante@email.com","carol.cavalcante","Padrao123","Gerente",Perfil.GERENTE));
+        usuarios.add(new Usuario("Thamiris Marie","thamiris.marie@email.com","thamiris.marie","Padrao123","Analista",Perfil.COLABORADOR));
+        usuarios.add(new Usuario("Rodrigo Bat","rodrigo.bat@email.com","rodrigo.bat","Padrao123","Analista",Perfil.COLABORADOR));
+    }
+
+    private static void menuLogin() {
+        System.out.println("\n===== LOGIN =====");
+        System.out.print("Login ou E-mail: "); String login = scanner.nextLine();
+        System.out.print("Senha: "); String senha = scanner.nextLine();
+
+        Usuario usuario = autenticar(login, senha);
+        if(usuario == null) { System.out.println("❌ Credenciais inválidas."); menuLogin(); }
+        else { System.out.println("✅ Bem-vindo, " + usuario.getNome()); menuPrincipal(usuario); }
+    }
+
+    private static Usuario autenticar(String loginOuEmail, String senha) {
+        for(Usuario u: usuarios)
+            if((u.getLogin().equalsIgnoreCase(loginOuEmail) || u.getEmail().equalsIgnoreCase(loginOuEmail))
+               && u.getSenha().equals(senha)) return u;
+        return null;
+    }
+
+    private static void menuPrincipal(Usuario usuario) {
+        boolean rodando = true;
+        while(rodando) {
+            System.out.println("\n===== MENU PRINCIPAL =====");
+            System.out.println("1. Criar Projeto");
+            System.out.println("2. Listar Projetos");
+            System.out.println("3. Abrir Projeto");
+            System.out.println("4. Exportar Projetos para CSV");
+            System.out.println("5. Sair");
+            System.out.print("Escolha: "); 
+            int opcao;
+            try { opcao = Integer.parseInt(scanner.nextLine()); }
+            catch(Exception e) { System.out.println("Entrada inválida."); continue; }
+
+            switch(opcao) {
+                case 1 -> criarProjeto(usuario);
+                case 2 -> listarProjetos();
+                case 3 -> abrirProjeto(usuario);
+                case 4 -> exportarProjetos();
+                case 5 -> { rodando=false; System.out.println("Até mais!"); }
+                default -> System.out.println("Opção inválida.");
+            }
+        }
+    }
+
+    private static void criarProjeto(Usuario usuario) {
+        System.out.print("Nome do projeto: "); String nome = scanner.nextLine();
+        System.out.print("Descrição: "); String desc = scanner.nextLine();
+        Projeto projeto = new Projeto(nome, desc, usuario, usuario);
+        projetos.add(projeto);
+        usuario.adicionarProjeto(projeto);
+        System.out.println("✅ Projeto criado: " + nome);
+        menuProjeto(projeto, usuario);
+    }
+
+    private static void listarProjetos() {
+        if(projetos.isEmpty()) { System.out.println("Nenhum projeto cadastrado."); return; }
+        for(int i=0;i<projetos.size();i++) {
+            Projeto p = projetos.get(i);
+            System.out.println(i + " - " + p.getNome() + " | Gerente: " + p.getGerente().getNome() + " | Membros: " + p.getEquipe().size());
+        }
+    }
+
+    private static void abrirProjeto(Usuario usuario) {
+        listarProjetos();
+        System.out.print("Número do projeto para abrir: "); 
+        int idx;
+        try { idx = Integer.parseInt(scanner.nextLine()); }
+        catch(Exception e) { System.out.println("Entrada inválida."); return; }
+
+        if(idx<0 || idx>=projetos.size()) { System.out.println("Projeto inválido."); return; }
+        Projeto p = projetos.get(idx);
+        menuProjeto(p, usuario);
+    }
+
+    private static void menuProjeto(Projeto projeto, Usuario usuario) {
+        boolean rodando = true;
+        while(rodando) {
+            System.out.println("\n===== PROJETO: " + projeto.getNome() + " =====");
+            System.out.println("1. Adicionar membro (Admin/Gerente)");
+            System.out.println("2. Adicionar tarefa");
+            System.out.println("3. Listar tarefas");
+            System.out.println("4. Voltar");
+            System.out.print("Escolha: "); int opcao;
+            try { opcao = Integer.parseInt(scanner.nextLine()); }
+            catch(Exception e) { System.out.println("Entrada inválida."); continue; }
+
+            switch(opcao) {
+                case 1 -> {
+                    if(usuario.getPerfil() == Perfil.COLABORADOR)
+                        System.out.println("❌ Você não tem permissão para adicionar membros.");
+                    else adicionarMembro(projeto);
+                }
+                case 2 -> adicionarTarefa(projeto);
+                case 3 -> listarTarefas(projeto);
+                case 4 -> rodando=false;
+                default -> System.out.println("Opção inválida.");
+            }
+        }
+    }
+
+    private static void adicionarMembro(Projeto projeto) {
+        System.out.println("Selecione usuário para adicionar:");
+        for (int i = 0; i < usuarios.size(); i++) {
+            System.out.println(i + " - " + usuarios.get(i).getNome() + " (" + usuarios.get(i).getPerfil() + ")");
+        }
+        int escolha;
+        try { escolha = Integer.parseInt(scanner.nextLine()); }
+        catch(Exception e) { System.out.println("Entrada inválida."); return; }
+
+        if (escolha < 0 || escolha >= usuarios.size()) {
+            System.out.println("Escolha inválida."); return;
+        }
+        projeto.adicionarMembro(usuarios.get(escolha));
+    }
+
+    private static void adicionarTarefa(Projeto projeto) {
+        System.out.print("Descrição da tarefa: "); 
+        String desc = scanner.nextLine();
+
+        if(projeto.getEquipe().isEmpty()) { System.out.println("Não há membros na equipe."); return; }
+
+        System.out.println("Escolha responsável:");
+        List<Usuario> equipe = projeto.getEquipe();
+        for (int i=0;i<equipe.size();i++) System.out.println(i + " - " + equipe.get(i).getNome());
+        int idx;
+        try { idx = Integer.parseInt(scanner.nextLine()); }
+        catch(Exception e) { System.out.println("Entrada inválida."); return; }
+
+        if(idx<0 || idx>=equipe.size()) { System.out.println("Escolha inválida."); return; }
+        Usuario responsavel = equipe.get(idx);
+
+        LocalDate inicio, fimPrev;
+        try {
+            System.out.print("Data de início (YYYY-MM-DD): "); inicio = LocalDate.parse(scanner.nextLine());
+            System.out.print("Data prevista de fim (YYYY-MM-DD): "); fimPrev = LocalDate.parse(scanner.nextLine());
+        } catch(DateTimeParseException e) { System.out.println("Formato de data inválido."); return; }
+
+        System.out.println("Escolha prioridade: 1-Alta 2-Media 3-Normal 4-Baixa");
+        int p;
+        try { p = Integer.parseInt(scanner.nextLine()); }
+        catch(Exception e) { p = 3; }
+
+        Prioridade prioridade = switch(p) {
+            case 1 -> Prioridade.ALTA;
+            case 2 -> Prioridade.MEDIA;
+            case 3 -> Prioridade.NORMAL;
+            case 4 -> Prioridade.BAIXA;
+            default -> Prioridade.NORMAL;
+        };
+
+        Tarefa t = new Tarefa(desc, inicio, fimPrev, prioridade, responsavel);
+        projeto.adicionarTarefa(t);
+        System.out.println("✅ Tarefa criada: " + desc);
+    }
+
+    private static void listarTarefas(Projeto projeto) {
+        List<Tarefa> tarefas = projeto.getTarefas();
+        if(tarefas.isEmpty()) { System.out.println("Nenhuma tarefa cadastrada."); return; }
+        for(int i=0;i<tarefas.size();i++) System.out.println(i + " - " + tarefas.get(i));
+
+        System.out.println("Deseja atualizar tarefa? S/N");
+        String opc = scanner.nextLine();
+        if(opc.equalsIgnoreCase("S")) {
+            System.out.print("Número da tarefa: "); int idx;
+            try { idx = Integer.parseInt(scanner.nextLine()); }
+            catch(Exception e) { System.out.println("Entrada inválida."); return; }
+
+            if(idx<0 || idx>=tarefas.size()) return;
+            Tarefa t = tarefas.get(idx);
+
+            System.out.println("1- Concluir 2- Cancelar 3- Voltar"); int acao;
+            try { acao = Integer.parseInt(scanner.nextLine()); }
+            catch(Exception e) { return; }
+
+            if(acao==1) t.concluir();
+            else if(acao==2) t.cancelar();
+        }
+    }
+
+    private static void exportarProjetos() {
+        for(Projeto p: projetos) p.exportarCSV();
+    }
+}
